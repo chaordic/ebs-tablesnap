@@ -17,10 +17,16 @@ log.formatter = proc do |severity, datetime, progname, msg|
   "#{severity} [#{datetime}] #{msg}\n"
 end
 
-notifier.watch data_dir, :moved_to, :delete do |event|
+notifier.watch data_dir, :moved_to, :delete, :recursive do |event|
   next if event.name.include? "-tmp"
-  FileUtils.rm((File.join ebs_dir, event.name), :force => true) if event.flags.include? :delete
-  FileUtils.cp((File.join data_dir, event.name), (File.join ebs_dir, event.name)) if event.flags.include? :moved_to
+  begin
+    FileUtils.rm((File.join ebs_dir, event.name), :force => true) if event.flags.include? :delete
+    FileUtils.cp((File.join data_dir, event.name), (File.join ebs_dir, event.name)) if event.flags.include? :moved_to
+  rescue Exception => e
+    log.error "Failed operation with file #{event.name}"
+    log.error "Message: #{e.message}"
+    log.error "Backtrace: #{e.backtrace.inspect}"
+  end
   log.info "FILE: #{event.name}, ACTION: #{event.flags}"
 end
 
